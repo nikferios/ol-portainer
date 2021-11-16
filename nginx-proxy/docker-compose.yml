@@ -1,0 +1,56 @@
+version: "2"
+
+services:
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy:latest
+    restart: always
+    networks:
+      - proxy
+    ports:
+      - "80:80"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+      - certs:/etc/nginx/certs
+      - html:/usr/share/nginx/html
+      - ./vhost.d:/etc/nginx/vhost.d:ro
+
+  acme-companion:
+    image: docker pull nginxproxy/acme-companion:latest
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - certs:/etc/nginx/certs
+      - html:/usr/share/nginx/html
+      - ./vhost.d:/etc/nginx/vhost.d
+      - acme:/etc/acme.sh
+    environment:
+      - DEFAULT_EMAIL=mail@yourdomain.tld #replace with your email
+    networks:
+      - proxy
+    depends_on:
+      - nginx-proxy
+
+  portainer:
+    image: portainer/portainer-ce:2.9.2
+    command: -H unix:///var/run/docker.sock
+    restart: always
+    networks:
+      - proxy
+    environment:
+      - VIRTUAL_HOST=portainer.yourdomain.tld # replace with your domain
+      - LETSENCRYPT_HOST=portainer.yourdomain.tld # replace with your domain
+      - VIRTUAL_PORT=9000
+    ports:
+      - 8000:8000
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+
+networks:
+  proxy:
+
+volumes:
+  portainer_data:
+  certs:
+  html:
+  acme:
